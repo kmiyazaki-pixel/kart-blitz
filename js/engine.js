@@ -191,12 +191,13 @@ var Engine = (function() {
     this.item  = null;
     this.spinT = 0;
     this.starT = 0;
+    this.locked = true;
     this.tw        = config.trackWidth  || 28;
-    this.MAXSPD    = config.maxSpeed    || 18;
-    this.ACC       = config.accel       || 35;
-    this.TURN      = config.turnSpeed   || 2.2;
-    this.DRAG_ROAD = config.dragRoad    || 1.4;
-    this.DRAG_GRASS= config.dragGrass   || 4.5;
+    this.MAXSPD    = config.maxSpeed    || 55;
+    this.ACC       = config.accel       || 180;
+    this.TURN      = config.turnSpeed   || 2.5;
+    this.DRAG_ROAD = config.dragRoad    || 1.2;
+    this.DRAG_GRASS= config.dragGrass   || 5.0;
     this.TLAPS     = config.laps        || 3;
     this.gateX     = config.gateX      || 3;
     this.gatePredicate = config.gatePredicate || null;
@@ -205,13 +206,14 @@ var Engine = (function() {
   }
 
   PlayerController.prototype.update = function(dt, keys, tpts) {
+    if (this.locked) return { spd:0, lt:false, rt:false, up:false };
     var up = keys['ArrowUp']  ||keys['w']||keys['W'];
     var dn = keys['ArrowDown']||keys['s']||keys['S'];
     var lt = keys['ArrowLeft']||keys['a']||keys['A'];
     var rt = keys['ArrowRight']||keys['d']||keys['D'];
 
     if (this.starT > 0) this.starT -= dt;
-    var cmax = this.starT > 0 ? this.MAXSPD*1.4 : this.MAXSPD;
+    var cmax = this.starT > 0 ? this.MAXSPD*1.45 : this.MAXSPD;
     var distOff = nearestDist(tpts, this.px, this.pz);
     var onRoad  = distOff < this.tw / 2;
     var drag    = onRoad ? this.DRAG_ROAD : this.DRAG_GRASS;
@@ -286,11 +288,13 @@ var Engine = (function() {
     this.vx=0; this.vz=0;
     this.tgt=startT+0.02;
     this.lap=1;
-    this.maxSpd=maxSpd||17;
+    this.locked=true;
+    this.maxSpd=maxSpd||45;
     this.cps=cps;
   }
 
   CpuController.prototype.update = function(dt) {
+    if (this.locked) return;
     // 先読みターゲット（lookahead）でスムーズに追従
     this.tgt += 0.002; if(this.tgt>1)this.tgt-=1;
     var tgt=catmull(this.cps,this.tgt);
@@ -299,8 +303,8 @@ var Engine = (function() {
     var ta=Math.atan2(tdx,tdz), diff=ta-this.angle;
     while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
     this.angle+=diff*Math.min(dt*3.0,1);
-    this.vx+=Math.sin(this.angle)*this.maxSpd*2.5*dt;
-    this.vz+=Math.cos(this.angle)*this.maxSpd*2.5*dt;
+    this.vx+=Math.sin(this.angle)*this.maxSpd*4.0*dt;
+    this.vz+=Math.cos(this.angle)*this.maxSpd*4.0*dt;
     var cv=Math.sqrt(this.vx*this.vx+this.vz*this.vz);
     if(cv>this.maxSpd){this.vx=this.vx/cv*this.maxSpd;this.vz=this.vz/cv*this.maxSpd;}
     this.vx*=Math.exp(-1.4*dt); this.vz*=Math.exp(-1.4*dt);
