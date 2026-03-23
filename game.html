@@ -95,7 +95,7 @@ function startGame(C) {
 
   // Lights — nightMode uses dim ambient + no directional sun
   var isNight = C.nightMode || false;
-  scene.add(new THREE.AmbientLight(isNight ? 0x112244 : 0xffeedd, isNight ? 0.4 : 0.7));
+  scene.add(new THREE.AmbientLight(isNight ? 0x3355aa : 0xffeedd, isNight ? 1.2 : 0.7));
   if (!isNight) {
     var sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
     sun.position.set(50,100,50); sun.castShadow=true;
@@ -104,6 +104,14 @@ function startGame(C) {
     sun.shadow.camera.far=350; sun.shadow.mapSize.set(1024,1024);
     scene.add(sun);
     scene.add(new THREE.DirectionalLight(0x88bbff, 0.3));
+  } else {
+    // 夜モード：コース全体を薄く照らす補助ライト
+    var nightFill = new THREE.DirectionalLight(0x4466cc, 0.6);
+    nightFill.position.set(0, 80, 0);
+    scene.add(nightFill);
+    var nightFill2 = new THREE.DirectionalLight(0x223355, 0.4);
+    nightFill2.position.set(100, 40, 80);
+    scene.add(nightFill2);
   }
 
   // Bake track
