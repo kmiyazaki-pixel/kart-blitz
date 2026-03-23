@@ -24,11 +24,11 @@ var Course = {
 
   gateX: 3,
 
-  // 夜空
-  skyColor:  0x050810,
-  fogColor:  0x0a1020,
-  fogNear:   60,
-  fogFar:    200,
+  // 夜空（見やすい濃紺に）
+  skyColor:  0x0d1a2e,
+  fogColor:  0x111e30,
+  fogNear:   80,
+  fogFar:    220,
 
   groundTex: 'asphalt',   // 都市なのでアスファルト地面
 
@@ -130,8 +130,8 @@ var Course = {
       // ランプ
       var lamp=new THREE.Mesh(new THREE.SphereGeometry(0.55,8,8),new THREE.MeshBasicMaterial({color:0xffeeaa}));
       lamp.position.set(lp[0],8.2,lp[1]); scene.add(lamp);
-      // 光源
-      var pl=new THREE.PointLight(0xffeeaa,0.8,22);
+      // 光源（明るく・広範囲に）
+      var pl=new THREE.PointLight(0xffeeaa,2.5,35);
       pl.position.set(lp[0],8,lp[1]); scene.add(pl);
       extras.neonLights.push(lamp);
     });
