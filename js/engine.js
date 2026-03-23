@@ -293,55 +293,46 @@ var Engine = (function() {
     this.cps=cps;
   }
 
-  CpuController.prototype.update = function(dt, tpts, tw) {
+    CpuController.prototype.update = function(dt, tpts, tw) {
     if (this.locked) return;
 
-    // 現在地から最も近いトラックT値を毎フレーム再計算して迷子を防ぐ
-    var closestT = 0, closestD = 999999;
-    var n = this.cps.length;
-    // 前回tgtの前後だけ探索（全探索は重いので±0.25の範囲）
-    var searchRange = 80;
-    var baseSeg = Math.floor(this.tgt * 200);
-    for (var si = -10; si <= searchRange; si++) {
-      var ti = ((baseSeg + si) % 200 + 200) % 200;
-      var r = catmull(this.cps, ti / 200);
-      var dx = this.px - r[0], dz = this.pz - r[1];
+    // ベイク済みtptsで最寄り点を高速検索
+    var closestT = this.tgt, closestD = 999999;
+    var segs = tpts ? tpts.length - 1 : 200;
+    var baseIdx = Math.round(this.tgt * segs);
+    var searchHalf = Math.round(segs * 0.45);
+    for (var si = -searchHalf; si <= searchHalf; si++) {
+      var idx = ((baseIdx + si) % segs + segs) % segs;
+      var tp = tpts[idx];
+      var dx = this.px - tp.x, dz = this.pz - tp.z;
       var d = dx*dx + dz*dz;
-      if (d < closestD) { closestD = d; closestT = ti / 200; }
+      if (d < closestD) { closestD = d; closestT = idx / segs; }
     }
 
-    // 先読み: 現在地から一定距離先のトラックポイントを目標にする
-    var lookahead = 0.025 + Math.min(Math.sqrt(this.vx*this.vx+this.vz*this.vz)/this.maxSpd, 1) * 0.02;
+    var spd = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
+    var lookahead = 0.022 + (spd / this.maxSpd) * 0.02;
     this.tgt = (closestT + lookahead) % 1;
 
     var tgt = catmull(this.cps, this.tgt);
     var tdx = tgt[0] - this.px, tdz = tgt[1] - this.pz;
 
-    // 向きをターゲット方向に合わせる（強めに）
     var ta = Math.atan2(tdx, tdz);
     var diff = ta - this.angle;
     while (diff >  Math.PI) diff -= Math.PI*2;
     while (diff < -Math.PI) diff += Math.PI*2;
-    this.angle += diff * Math.min(dt * 6.0, 1);
+    this.angle += diff * Math.min(dt * 7.0, 1);
 
-    // 加速（常にフルスロットル）
-    var spd = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
     if (spd < this.maxSpd) {
       this.vx += Math.sin(this.angle) * this.maxSpd * 5.0 * dt;
       this.vz += Math.cos(this.angle) * this.maxSpd * 5.0 * dt;
     }
-    // 速度上限
     var cv = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
     if (cv > this.maxSpd) { this.vx = this.vx/cv*this.maxSpd; this.vz = this.vz/cv*this.maxSpd; }
-
-    // 摩擦
     this.vx *= Math.exp(-1.2*dt);
     this.vz *= Math.exp(-1.2*dt);
-
     this.px += this.vx*dt;
     this.pz += this.vz*dt;
 
-    // コース境界の強制（プレイヤーと同じロジック）
     if (tpts && tw) {
       var distAfter = nearestDist(tpts, this.px, this.pz);
       var wall = tw / 2 + 1;
