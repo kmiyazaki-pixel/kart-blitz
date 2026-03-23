@@ -6,8 +6,8 @@
 <title>Kart Blitz</title>
 <style>
 * { margin:0;padding:0;box-sizing:border-box; }
-body { background:#000;overflow:hidden;font-family:sans-serif; }
-#wrap { position:relative;width:100vw;height:100vh; }
+html, body { width:100%;height:100%;overflow:hidden;background:#000;font-family:sans-serif; }
+#wrap { position:relative;width:100%;height:100%; }
 canvas#cv { display:block;width:100%;height:100%; }
 /* HUD */
 .hud-panel {
@@ -78,9 +78,11 @@ function startGame(C) {
   document.getElementById('course-name').textContent = C.name;
   document.title = C.name + ' — Kart Blitz';
 
-  var W = window.innerWidth, H = window.innerHeight;
+  var wrap = document.getElementById('wrap');
+  var W = wrap.clientWidth, H = wrap.clientHeight;
   var cv = document.getElementById('cv');
   cv.width = W; cv.height = H;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
 
   var renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true });
   renderer.setSize(W, H);
