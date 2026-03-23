@@ -1,335 +1,284 @@
-// courses/city.js — ネオシティ（ネオクッパシティ風・夜・雨）
+// courses/city.js — 夜の高架都市（ネオクッパシティ風）
 
 var Course = {
   id:   'city',
-  name: 'ネオシティ',
+  name: '夜の都市',
   laps:  3,
   nightMode: true,
 
-  // コース形状：長いストレート→ヘアピン→S字→高架ループ→急カーブ連続
+  // 高架ループ＋ヘアピン＋直線が混在するテクニカルコース
   controlPoints: [
-    // スタートストレート（長い直線）
-    [0,0],[80,0],[160,0],[240,0],
-    // 右大カーブ
-    [300,15],[330,50],[325,90],
-    // ヘアピン左
-    [300,120],[260,140],[220,135],[190,115],
-    // S字区間
-    [170,85],[165,55],[185,30],[220,15],
-    // 右ヘアピン折り返し
-    [265,5],[305,-15],[330,20],[320,60],
-    // 左大カーブ
-    [295,100],[250,130],[200,148],[150,148],
-    // 長い左ストレート
-    [100,148],[50,148],[0,148],
-    // 最終ヘアピン左
-    [-40,140],[-65,110],[-60,75],[-30,55],
-    // スタートラインへ戻る
-    [0,30],[0,0]
+    [0,0],[90,0],[180,0],[240,30],[255,90],
+    [240,150],[195,180],[135,180],[90,165],[60,135],
+    [45,90],[60,45],[105,30],[165,45],[210,90],
+    [225,150],[210,195],[165,225],[105,225],[60,210],
+    [15,180],[0,135],[-15,90],[0,45]
   ],
-  trackWidth: 30,
-  trackSegs:  300,
+  trackWidth: 28,
+  trackSegs:  240,
 
   startX:     0,
-  startZ:     14,
+  startZ:     12,
   startAngle: Math.PI / 2,
-  gateX:      4,
+  gateX:      3,
 
-  skyColor:  0x020510,
+  skyColor:  0x04070f,
   fogColor:  0x080e1e,
   fogNear:   80,
-  fogFar:    260,
+  fogFar:    220,
 
   buildGround: function(scene) {
-    // 濡れたアスファルト（反射あり）
+    // 濡れた暗い路面
     var c = document.createElement('canvas'); c.width=512; c.height=512;
     var x = c.getContext('2d');
-    x.fillStyle = '#0d0f14'; x.fillRect(0,0,512,512);
-    // タイルグリッド
-    x.strokeStyle = 'rgba(255,255,255,0.03)'; x.lineWidth = 1;
-    for(var i=0;i<512;i+=32){x.beginPath();x.moveTo(i,0);x.lineTo(i,512);x.stroke();}
-    for(var j=0;j<512;j+=32){x.beginPath();x.moveTo(0,j);x.lineTo(512,j);x.stroke();}
-    // ネオン反射
-    var cols=['#ff00aa','#00ffee','#ff6600','#8800ff','#00ff44'];
-    for(var i=0;i<120;i++){
+    x.fillStyle='#0a0c14'; x.fillRect(0,0,512,512);
+    // タイル目地
+    for (var tx=0;tx<512;tx+=32) { x.strokeStyle='rgba(255,255,255,0.04)'; x.lineWidth=1; x.beginPath(); x.moveTo(tx,0); x.lineTo(tx,512); x.stroke(); }
+    for (var tz=0;tz<512;tz+=32) { x.strokeStyle='rgba(255,255,255,0.04)'; x.lineWidth=1; x.beginPath(); x.moveTo(0,tz); x.lineTo(512,tz); x.stroke(); }
+    // ネオン反射（水たまり）
+    var cols=['#ff00aa','#00ffee','#aa00ff','#ff6600','#0066ff'];
+    for (var i=0;i<80;i++){
+      var px=Math.random()*512, py=Math.random()*512;
       var col=cols[Math.floor(Math.random()*cols.length)];
-      x.fillStyle=col.replace(')',',0.06)').replace('#','rgba(').replace(/([0-9a-f]{2})/gi,function(m,p,off){return off===0?parseInt(m,16)+',':off===2?parseInt(m,16)+',':off===4?parseInt(m,16):'';});
-      // 手抜きせず直接rgba指定
+      var g=x.createRadialGradient(px,py,0,px,py,Math.random()*18+6);
+      g.addColorStop(0,col.replace('#','rgba(').replace(/([0-9a-f]{2})/gi,function(m,_,o){return o<5?parseInt(m,16)+',':''})+'0.18)');
+      g.addColorStop(0,col+'33');
+      g.addColorStop(1,'transparent');
+      x.fillStyle=g; x.fillRect(px-20,py-20,40,40);
     }
-    // シンプルな光の筋
-    ['rgba(255,0,150,0.05)','rgba(0,255,220,0.04)','rgba(255,100,0,0.04)'].forEach(function(col,ci){
-      x.fillStyle=col; x.fillRect(ci*170,0,130,512);
-    });
-    var t=new THREE.CanvasTexture(c);
-    t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(30,30);
-    var gnd=new THREE.Mesh(new THREE.PlaneGeometry(900,700),new THREE.MeshLambertMaterial({map:t}));
-    gnd.rotation.x=-Math.PI/2; gnd.position.set(135,-0.05,74);
+    var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(30,30);
+    var gnd=new THREE.Mesh(new THREE.PlaneGeometry(900,800),new THREE.MeshLambertMaterial({map:t}));
+    gnd.rotation.x=-Math.PI/2; gnd.position.set(120,-0.05,112);
     gnd.receiveShadow=true; scene.add(gnd);
   },
 
   itemBoxes: [
-    [0.05,0,0],[0.12,10,0],[0.20,-10,0],
-    [0.30,0,0],[0.40,10,0],[0.50,-10,0],
-    [0.60,0,0],[0.70,10,0],[0.80,-10,0],[0.90,0,0]
+    [0.06,0,0],[0.15,8,0],[0.24,-8,0],[0.34,0,0],
+    [0.44,8,0],[0.54,-8,0],[0.64,0,0],
+    [0.74,8,0],[0.84,-8,0],[0.94,0,0]
   ],
 
   cpus: [
-    { startT:0.04, maxSpd:50 },
-    { startT:0.08, maxSpd:52 },
-    { startT:0.12, maxSpd:48 }
+    { startT: 0.04, maxSpd: 48 },
+    { startT: 0.08, maxSpd: 52 },
+    { startT: 0.12, maxSpd: 46 }
   ],
 
   cpuColors: [
-    [0xff2200, 0x880800],
-    [0x00eeff, 0x006677],
-    [0xcc00ff, 0x550077]
+    [0xff0088, 0x880044],
+    [0x00eeff, 0x006688],
+    [0xaa00ff, 0x550088]
   ],
 
   buildScenery: function(scene) {
-    var extras = { rainPos:null, rainMesh:null, signs:[], lights:[] };
+    var extras = { rainPos:null, rain:null, signs:[], screens:[] };
 
-    // ===== 高層ビル群 =====
+    // ============ ビル群 ============
     var buildings = [
-      // 左サイド（コース外側）
-      {x:-80, z:15,  w:30, h:120, d:25, wall:0x0a0e18, win:0xff2288},
-      {x:-85, z:60,  w:22, h:90,  d:20, wall:0x080c14, win:0x00eeff},
-      {x:-80, z:100, w:28, h:150, d:24, wall:0x0a0e1c, win:0xff6600},
-      {x:-82, z:140, w:24, h:80,  d:22, wall:0x08090f, win:0x8800ff},
-      // 右サイド
-      {x:390, z:15,  w:28, h:110, d:22, wall:0x0a0e18, win:0x00ff88},
-      {x:392, z:65,  w:24, h:140, d:20, wall:0x080c14, win:0xff2288},
-      {x:388, z:110, w:30, h:95,  d:26, wall:0x0a0e1c, win:0x00eeff},
-      // 上側
-      {x:80,  z:200, w:26, h:100, d:22, wall:0x08090f, win:0xff6600},
-      {x:160, z:205, w:32, h:130, d:28, wall:0x0a0e18, win:0x8800ff},
-      {x:250, z:202, w:24, h:110, d:20, wall:0x080c14, win:0x00ff88},
-      // 下側
-      {x:80,  z:-60, w:28, h:95,  d:24, wall:0x0a0e1c, win:0xff2288},
-      {x:200, z:-58, w:24, h:120, d:22, wall:0x08090f, win:0x00eeff},
-      {x:300, z:-55, w:30, h:85,  d:26, wall:0x0a0e18, win:0xff6600},
+      // [x, z, w, h, d, wallCol, neonCol]
+      // 左側
+      [-35, 30,  22, 80, 28, 0x080c18, 0xff0088],
+      [-38, 90,  18, 55, 22, 0x06080f, 0x00eeff],
+      [-35, 148, 24, 95, 30, 0x0a0c1a, 0xaa00ff],
+      [-38, 210, 20, 65, 25, 0x080c18, 0xff6600],
+      // 右側
+      [290, 25,  24, 88, 30, 0x06080f, 0x00eeff],
+      [292, 90,  20, 60, 24, 0x0a0c1a, 0xff0088],
+      [288, 155, 26,105, 32, 0x080c18, 0xffcc00],
+      [290, 220, 22, 72, 28, 0x06080f, 0xaa00ff],
+      // 奥
+      [50, -45,  28, 70, 22, 0x0a0c1a, 0xff0088],
+      [130,-48,  32, 90, 26, 0x080c18, 0x00eeff],
+      [210,-45,  26, 75, 22, 0x06080f, 0xaa00ff],
+      // 手前
+      [50, 268,  28, 68, 22, 0x0a0c1a, 0xffcc00],
+      [130,272,  32, 85, 26, 0x080c18, 0xff0088],
+      [210,268,  26, 72, 22, 0x06080f, 0x00eeff],
     ];
 
     buildings.forEach(function(b) {
-      // ビル本体
-      var bm = new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),
-        new THREE.MeshLambertMaterial({color:b.wall}));
-      bm.position.set(b.x, b.h/2, b.z); bm.castShadow=true; scene.add(bm);
-
-      // 屋上ネオンライン
-      var roof = new THREE.Mesh(new THREE.BoxGeometry(b.w+1,1.5,b.d+1),
-        new THREE.MeshBasicMaterial({color:b.win,transparent:true,opacity:0.85}));
-      roof.position.set(b.x, b.h+0.75, b.z); scene.add(roof);
-      var roofLight = new THREE.PointLight(b.win, 0.8, 60);
-      roofLight.position.set(b.x, b.h+2, b.z); scene.add(roofLight);
-      extras.lights.push(roofLight);
-
-      // 窓（ランダム点灯）
-      var floors = Math.floor(b.h/8);
-      for(var fy=1; fy<floors; fy++){
-        var rowY = fy*8 - b.h/2 + 4;
-        var cols2 = Math.floor(b.w/5);
-        for(var fc=0; fc<cols2; fc++){
-          if(Math.random()<0.65){
-            var wx = -b.w/2+2.5+fc*5;
-            var win = new THREE.Mesh(new THREE.PlaneGeometry(2.5,3.5),
-              new THREE.MeshBasicMaterial({color:b.win,transparent:true,opacity:0.35+Math.random()*0.45}));
-            win.position.set(b.x+wx, b.h/2+rowY, b.z+b.d/2+0.1); scene.add(win);
+      var bx=b[0],bz=b[1],bw=b[2],bh=b[3],bd=b[4],wc=b[5],nc=b[6];
+      // 本体
+      var bm=new THREE.Mesh(new THREE.BoxGeometry(bw,bh,bd),new THREE.MeshLambertMaterial({color:wc}));
+      bm.position.set(bx,bh/2,bz); bm.castShadow=true; scene.add(bm);
+      // 屋上ネオン帯
+      var top=new THREE.Mesh(new THREE.BoxGeometry(bw+0.5,1.5,bd+0.5),new THREE.MeshBasicMaterial({color:nc,transparent:true,opacity:0.9}));
+      top.position.set(bx,bh+0.75,bz); scene.add(top);
+      var topLight=new THREE.PointLight(nc,1.2,50);
+      topLight.position.set(bx,bh+2,bz); scene.add(topLight);
+      // 窓
+      for(var wy=4;wy<bh-3;wy+=5){
+        for(var wx=-bw/2+2;wx<bw/2-1;wx+=3.5){
+          if(Math.random()<0.72){
+            var wop=0.4+Math.random()*0.5;
+            var win=new THREE.Mesh(new THREE.PlaneGeometry(2.0,2.8),
+              new THREE.MeshBasicMaterial({color:nc,transparent:true,opacity:wop}));
+            win.position.set(bx+wx,wy,bz+bd/2+0.06); scene.add(win);
           }
         }
       }
     });
 
-    // ===== 街灯（コース沿いに密集） =====
-    var lampPositions = [
-      // スタートストレート沿い
-      [15,20],[15,50],[15,80],[15,110],[15,130],
-      [-15,20],[-15,50],[-15,80],[-15,110],[-15,130],
-      // 右カーブ〜ヘアピン
-      [290,10],[310,40],[320,75],[300,115],[265,145],
-      // S字
-      [175,40],[180,70],[200,130],
-      // 左ストレート
-      [50,165],[100,165],[150,165],[200,165],[250,165],
-      [50,130],[100,130],[150,130],
+    // ============ 巨大ネオンスクリーン（ビルボード） ============
+    var screenData=[
+      {x:-28, y:30, z:60,  w:18, h:12, col:0xff0088, rY:Math.PI/2},
+      {x:282, y:35, z:55,  w:18, h:12, col:0x00eeff, rY:-Math.PI/2},
+      {x:-28, y:32, z:160, w:16, h:10, col:0xaa00ff, rY:Math.PI/2},
+      {x:282, y:30, z:165, w:16, h:10, col:0xffcc00, rY:-Math.PI/2},
+      {x:120, y:38, z:-38, w:24, h:14, col:0xff0088, rY:0},
+      {x:120, y:35, z:262, w:22, h:13, col:0x00eeff, rY:Math.PI},
     ];
+    screenData.forEach(function(sd){
+      // フレーム
+      var frame=new THREE.Mesh(new THREE.BoxGeometry(sd.w+1,sd.h+1,0.6),
+        new THREE.MeshLambertMaterial({color:0x222233}));
+      frame.position.set(sd.x,sd.y,sd.z); frame.rotation.y=sd.rY; scene.add(frame);
+      // 画面
+      var screen=new THREE.Mesh(new THREE.PlaneGeometry(sd.w,sd.h),
+        new THREE.MeshBasicMaterial({color:sd.col,transparent:true,opacity:0.85}));
+      screen.position.set(sd.x,sd.y,sd.z); screen.rotation.y=sd.rY;
+      // 画面の少し手前に出す
+      screen.position.x += Math.sin(sd.rY)*0.4;
+      screen.position.z += Math.cos(sd.rY)*0.4;
+      scene.add(screen);
+      extras.screens.push({mesh:screen,phase:Math.random()*Math.PI*2,col:sd.col});
+      // 光源
+      var sl=new THREE.PointLight(sd.col,1.5,40);
+      sl.position.set(sd.x,sd.y,sd.z); scene.add(sl);
+    });
 
-    lampPositions.forEach(function(lp) {
-      // ポール
-      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.5,14,6),
-        new THREE.MeshLambertMaterial({color:0x334455}));
+    // ============ 街灯（ネオン色） ============
+    var lampColors=[0xff0088,0x00eeff,0xaa00ff,0xffcc00,0xff6600];
+    var lampPos=[
+      [12,25],[12,75],[12,130],[12,180],[12,225],
+      [228,20],[228,75],[228,130],[228,185],[228,225],
+      [60,-12],[120,-14],[180,-12],
+      [60,238],[120,240],[180,238],
+    ];
+    lampPos.forEach(function(lp,li){
+      var nc=lampColors[li%lampColors.length];
+      var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.4,14,7),
+        new THREE.MeshLambertMaterial({color:0x1a1a2a}));
       pole.position.set(lp[0],7,lp[1]); pole.castShadow=true; scene.add(pole);
       // アーム
-      var arm = new THREE.Mesh(new THREE.BoxGeometry(4,0.4,0.4),
-        new THREE.MeshLambertMaterial({color:0x334455}));
-      arm.position.set(lp[0]+2,13.8,lp[1]); scene.add(arm);
-      // ランプ
-      var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.9,8,8),
-        new THREE.MeshBasicMaterial({color:0xffeebb}));
-      lamp.position.set(lp[0]+4,13.5,lp[1]); scene.add(lamp);
-      var pl = new THREE.PointLight(0xffeebb, 2.2, 45);
-      pl.position.set(lp[0]+4,13,lp[1]); scene.add(pl);
-      extras.lights.push(pl);
+      var arm=new THREE.Mesh(new THREE.BoxGeometry(4,0.3,0.3),
+        new THREE.MeshLambertMaterial({color:0x1a1a2a}));
+      arm.position.set(lp[0]+2,14,lp[1]); scene.add(arm);
+      var lamp=new THREE.Mesh(new THREE.SphereGeometry(0.7,8,8),
+        new THREE.MeshBasicMaterial({color:nc}));
+      lamp.position.set(lp[0]+4,14,lp[1]); scene.add(lamp);
+      var pl=new THREE.PointLight(nc,2.0,35);
+      pl.position.set(lp[0]+4,13.5,lp[1]); scene.add(pl);
     });
 
-    // ===== ネオン看板 =====
-    var neonSigns = [
-      {x:0,  y:22, z:-18, w:35, h:5,  col:0xff0088, rot:0},
-      {x:330,y:25, z:35,  w:30, h:4.5,col:0x00ffee, rot:Math.PI/2},
-      {x:180,y:20, z:-22, w:28, h:4,  col:0xff6600, rot:0},
-      {x:-30,y:18, z:90,  w:25, h:4,  col:0x8800ff, rot:Math.PI/2},
-      {x:130,y:22, z:165, w:32, h:4.5,col:0x00ff88, rot:0},
-      {x:250,y:20, z:165, w:28, h:4,  col:0xff2288, rot:0},
+    // ============ 高架橋の支柱 ============
+    var pillarPos=[[60,20],[120,18],[180,20],[60,205],[120,207],[180,205]];
+    pillarPos.forEach(function(pp){
+      var pillar=new THREE.Mesh(new THREE.BoxGeometry(3,18,3),
+        new THREE.MeshLambertMaterial({color:0x111122}));
+      pillar.position.set(pp[0],9,pp[1]); pillar.castShadow=true; scene.add(pillar);
+      // ネオン縁
+      var edge=new THREE.Mesh(new THREE.BoxGeometry(3.3,0.4,3.3),
+        new THREE.MeshBasicMaterial({color:0x0066ff,transparent:true,opacity:0.8}));
+      edge.position.set(pp[0],18,pp[1]); scene.add(edge);
+    });
+
+    // ============ 遠景の高層ビルシルエット ============
+    var farBlds=[
+      [-80,60,20,120,30,0x03050c],[-85,140,16,90,24,0x040608],
+      [320,50,22,135,28,0x03050c],[318,140,18,100,26,0x040608],
+      [60,-80,30,110,24,0x03050c],[130,-82,26,140,22,0x040608],[200,-80,28,115,24,0x03050c],
+      [60,310,30,105,24,0x03050c],[130,312,26,130,22,0x040608],[200,310,28,110,24,0x03050c],
     ];
-    neonSigns.forEach(function(sg) {
-      var sm = new THREE.Mesh(new THREE.BoxGeometry(sg.w,sg.h,0.6),
-        new THREE.MeshBasicMaterial({color:sg.col,transparent:true,opacity:0.95}));
-      sm.position.set(sg.x,sg.y,sg.z); sm.rotation.y=sg.rot; scene.add(sm);
-      // 光源
-      var sl = new THREE.PointLight(sg.col, 1.2, 35);
-      sl.position.set(sg.x,sg.y+2,sg.z); scene.add(sl);
-      extras.signs.push({mesh:sm, light:sl, phase:Math.random()*Math.PI*2});
-    });
-
-    // ===== 広告塔（大型スクリーン風） =====
-    var screens = [
-      {x:-60,z:75,  w:18,h:28,col:0x0044ff},
-      {x:368,z:40,  w:18,h:28,col:0xff0044},
-      {x:170,z:195, w:22,h:30,col:0x00ff88},
-    ];
-    screens.forEach(function(sc){
-      // フレーム
-      var frame = new THREE.Mesh(new THREE.BoxGeometry(sc.w+2,sc.h+2,1.5),
-        new THREE.MeshLambertMaterial({color:0x111111}));
-      frame.position.set(sc.x,sc.h/2+10,sc.z); scene.add(frame);
-      // スクリーン
-      var screen2 = new THREE.Mesh(new THREE.PlaneGeometry(sc.w,sc.h),
-        new THREE.MeshBasicMaterial({color:sc.col,transparent:true,opacity:0.8}));
-      screen2.position.set(sc.x,sc.h/2+10,sc.z+0.85); scene.add(screen2);
-      extras.signs.push({mesh:screen2, light:null, phase:Math.random()*Math.PI*2, isScreen:true});
-      var sl2=new THREE.PointLight(sc.col,1.0,50); sl2.position.set(sc.x,sc.h/2+10,sc.z+2); scene.add(sl2);
-      extras.lights.push(sl2);
-    });
-
-    // ===== 路面の横断歩道・ライン =====
-    // スタートストレートに横断歩道
-    for(var ci=0;ci<8;ci++){
-      var cw=new THREE.Mesh(new THREE.PlaneGeometry(3,30),
-        new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.25}));
-      cw.rotation.x=-Math.PI/2; cw.position.set(-10+ci*4.5,0.03,70); scene.add(cw);
-    }
-
-    // ===== 雨パーティクル =====
-    var rainCount = 1000;
-    var rainGeo = new THREE.BufferGeometry();
-    var rPos = new Float32Array(rainCount*3);
-    for(var i=0;i<rainCount;i++){
-      rPos[i*3]   = (Math.random()-0.5)*380+135;
-      rPos[i*3+1] = Math.random()*55;
-      rPos[i*3+2] = (Math.random()-0.5)*300+74;
-    }
-    rainGeo.setAttribute('position',new THREE.BufferAttribute(rPos,3));
-    var rainMat = new THREE.PointsMaterial({color:0x6699bb,size:0.2,transparent:true,opacity:0.55});
-    var rain = new THREE.Points(rainGeo,rainMat);
-    scene.add(rain);
-    extras.rainPos = rPos;
-    extras.rainMesh = rain;
-
-    // ===== 遠景ビル（シルエット） =====
-    [[-160,74,40,180,50],[380,74,40,160,50],[135,-120,180,140,40],[135,270,180,140,40]].forEach(function(fb){
+    farBlds.forEach(function(fb){
       var fm=new THREE.Mesh(new THREE.BoxGeometry(fb[2],fb[3],fb[4]),
-        new THREE.MeshLambertMaterial({color:0x04060a}));
+        new THREE.MeshLambertMaterial({color:fb[5]}));
       fm.position.set(fb[0],fb[3]/2,fb[1]); scene.add(fm);
-      // ランダムな窓光
-      for(var wf=0;wf<12;wf++){
-        var wfc=['#ff0088','#00ffee','#ff6600','#8800ff'][Math.floor(Math.random()*4)];
-        var wm=new THREE.Mesh(new THREE.PlaneGeometry(3,4),
-          new THREE.MeshBasicMaterial({color:wfc,transparent:true,opacity:0.3+Math.random()*0.4}));
-        wm.position.set(fb[0]+(Math.random()-0.5)*fb[2]*0.8,
-          Math.random()*fb[3]*0.8-fb[3]*0.3, fb[1]+fb[4]/2+0.1); scene.add(wm);
-      }
+      // 屋上赤いランプ
+      var rl=new THREE.Mesh(new THREE.SphereGeometry(0.6,6,6),
+        new THREE.MeshBasicMaterial({color:0xff2200,transparent:true,opacity:0.8}));
+      rl.position.set(fb[0],fb[3]+0.8,fb[1]); scene.add(rl);
+    });
+
+    // ============ 豪雨パーティクル ============
+    var rainCount=1200;
+    var rainGeo=new THREE.BufferGeometry();
+    var rainPos2=new Float32Array(rainCount*3);
+    for(var i=0;i<rainCount;i++){
+      rainPos2[i*3]  =(Math.random()-0.5)*440+120;
+      rainPos2[i*3+1]=Math.random()*55;
+      rainPos2[i*3+2]=(Math.random()-0.5)*380+112;
+    }
+    rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos2,3));
+    var rainMat=new THREE.PointsMaterial({color:0x8899cc,size:0.18,transparent:true,opacity:0.55});
+    var rain=new THREE.Points(rainGeo,rainMat);
+    scene.add(rain);
+    extras.rain=rain; extras.rainPos=rainPos2;
+
+    // 霧雨ハロ（地面近くの光の散乱）
+    var halos=[0xff0088,0x00eeff,0xaa00ff];
+    [[15,1,40],[228,1,112],[120,1,-12]].forEach(function(hp,hi){
+      var h=new THREE.Mesh(new THREE.PlaneGeometry(30,30),
+        new THREE.MeshBasicMaterial({color:halos[hi],transparent:true,opacity:0.06,side:THREE.DoubleSide}));
+      h.rotation.x=-Math.PI/2; h.position.set(hp[0],hp[1],hp[2]); scene.add(h);
     });
 
     return extras;
   },
 
   animateScenery: function(extras, frm) {
-    if(!extras) return;
+    if (!extras) return;
 
-    // 雨
-    if(extras.rainPos && extras.rainMesh){
+    // 豪雨
+    if (extras.rain && extras.rainPos) {
       var pos=extras.rainPos;
       for(var i=0;i<pos.length/3;i++){
-        pos[i*3]   -= 0.08;
-        pos[i*3+1] -= 0.75;
-        if(pos[i*3+1]<0){
-          pos[i*3+1]=50+Math.random()*8;
-          pos[i*3]  =(Math.random()-0.5)*380+135;
-          pos[i*3+2]=(Math.random()-0.5)*300+74;
+        pos[i*3]  -= 0.08;
+        pos[i*3+1]-= 0.75 + Math.random()*0.2;
+        if(pos[i*3+1]<-1){
+          pos[i*3+1]=52+Math.random()*5;
+          pos[i*3]  =(Math.random()-0.5)*440+120;
+          pos[i*3+2]=(Math.random()-0.5)*380+112;
         }
       }
-      extras.rainMesh.geometry.attributes.position.needsUpdate=true;
+      extras.rain.geometry.attributes.position.needsUpdate=true;
     }
 
-    // ネオン点滅
-    if(extras.signs){
-      extras.signs.forEach(function(sg,i){
-        sg.phase += 0.03 + i*0.007;
-        var op = sg.isScreen
-          ? 0.5+Math.sin(sg.phase*0.4)*0.3           // スクリーンはゆっくり
-          : 0.7+Math.sin(sg.phase)*0.28;              // 看板は早め点滅
-        sg.mesh.material.opacity = op;
-        if(sg.light) sg.light.intensity = 0.6+Math.sin(sg.phase)*0.6;
-      });
-    }
-
-    // 屋上ライトのちらつき
-    if(extras.lights && frm%8===0){
-      extras.lights.forEach(function(l,i){
-        if(l.intensity!==undefined && Math.random()<0.08)
-          l.intensity = l.intensity * (0.7+Math.random()*0.6);
+    // スクリーンのフリッカー＆色変化
+    if (extras.screens) {
+      extras.screens.forEach(function(sc){
+        sc.phase += 0.035;
+        sc.mesh.material.opacity = 0.65 + Math.sin(sc.phase)*0.2 + (Math.random()<0.02?Math.random()*0.3:0);
       });
     }
   },
 
   buildFinish: function(scene) {
-    // チェッカーライン
     var ftc=document.createElement('canvas');ftc.width=256;ftc.height=32;
     var ftx=ftc.getContext('2d');
     for(var i=0;i<16;i++){
       ftx.fillStyle=i%2===0?'#000':'#fff';ftx.fillRect(i*16,0,16,16);
       ftx.fillStyle=i%2===0?'#fff':'#000';ftx.fillRect(i*16,16,16,16);
     }
-    var fin=new THREE.Mesh(new THREE.PlaneGeometry(3,30),
+    var fin=new THREE.Mesh(new THREE.PlaneGeometry(2.5,28),
       new THREE.MeshLambertMaterial({map:new THREE.CanvasTexture(ftc)}));
-    fin.rotation.x=-Math.PI/2; fin.position.set(5,0.06,0); scene.add(fin);
+    fin.rotation.x=-Math.PI/2; fin.position.set(4,0.06,0); scene.add(fin);
 
-    // ゴールゲート（ネオンアーチ）
-    var archColors=[0xff0088,0x00ffee];
-    [-16,16].forEach(function(sx,ci){
-      var col=archColors[ci];
-      var pillar=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.9,18,8),
-        new THREE.MeshLambertMaterial({color:0x111111}));
-      pillar.position.set(sx,9,0); scene.add(pillar);
-      // ネオン縁取り
-      var neon=new THREE.Mesh(new THREE.CylinderGeometry(0.8,1.0,18.2,8),
-        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.7,wireframe:true}));
-      neon.position.set(sx,9,0); scene.add(neon);
-      var pl=new THREE.PointLight(col,2.5,30); pl.position.set(sx,18,0); scene.add(pl);
+    // ネオンゲートアーチ（ピンク）
+    var archMat=new THREE.MeshBasicMaterial({color:0xff0088,transparent:true,opacity:0.9});
+    [-15,15].forEach(function(sx){
+      var col=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,18,8),archMat);
+      col.position.set(sx,9,0); scene.add(col);
+      var glow=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.9,18,8),
+        new THREE.MeshBasicMaterial({color:0xff0088,transparent:true,opacity:0.2}));
+      glow.position.set(sx,9,0); scene.add(glow);
+      var pl=new THREE.PointLight(0xff0088,3,25);
+      pl.position.set(sx,18,0); scene.add(pl);
     });
-    // 上部ビーム
-    var beam=new THREE.Mesh(new THREE.BoxGeometry(34,1.2,1.2),
-      new THREE.MeshBasicMaterial({color:0x00ffee,transparent:true,opacity:0.85}));
-    beam.position.set(0,18.2,0); scene.add(beam);
-    var beamLight=new THREE.PointLight(0x00ffee,1.5,40);
-    beamLight.position.set(0,19,0); scene.add(beamLight);
-
-    // スタートライン横のバリア
-    [-16,16].forEach(function(sx){
-      for(var bi=0;bi<4;bi++){
-        var bar=new THREE.Mesh(new THREE.BoxGeometry(1.5,2,4),
-          new THREE.MeshLambertMaterial({color:bi%2===0?0xff2200:0xffffff}));
-        bar.position.set(sx+(sx>0?2:-2),1,bi*5-8); scene.add(bar);
-      }
-    });
+    var beam=new THREE.Mesh(new THREE.BoxGeometry(32,0.8,0.8),archMat);
+    beam.position.set(0,18,0); scene.add(beam);
+    var beamGlow=new THREE.Mesh(new THREE.BoxGeometry(32,2,2),
+      new THREE.MeshBasicMaterial({color:0xff0088,transparent:true,opacity:0.15}));
+    beamGlow.position.set(0,18,0); scene.add(beamGlow);
   }
 };
