@@ -32,6 +32,16 @@ var Engine = (function() {
     return Math.sqrt(best);
   }
 
+  // 最近傍トラック点を返す（境界押し戻し用）
+  function nearestPoint(pts, x, z) {
+    var best=999999, bx=pts[0].x, bz=pts[0].z;
+    for (var i = 0; i < pts.length; i++) {
+      var dx=x-pts[i].x, dz=z-pts[i].z, d=dx*dx+dz*dz;
+      if (d < best) { best=d; bx=pts[i].x; bz=pts[i].z; }
+    }
+    return { x: bx, z: bz };
+  }
+
   function nearestT(cps, segs, x, z) {
     var best=999999, bt=0;
     for (var i = 0; i < segs; i++) {
@@ -181,11 +191,12 @@ var Engine = (function() {
     this.item  = null;
     this.spinT = 0;
     this.starT = 0;
-    this.MAXSPD    = config.maxSpeed    || 36;
-    this.ACC       = config.accel       || 80;
-    this.TURN      = config.turnSpeed   || 2.3;
+    this.tw        = config.trackWidth  || 28;
+    this.MAXSPD    = config.maxSpeed    || 18;
+    this.ACC       = config.accel       || 35;
+    this.TURN      = config.turnSpeed   || 2.2;
     this.DRAG_ROAD = config.dragRoad    || 1.4;
-    this.DRAG_GRASS= config.dragGrass   || 4.2;
+    this.DRAG_GRASS= config.dragGrass   || 4.5;
     this.TLAPS     = config.laps        || 3;
     this.gateX     = config.gateX      || 3;
     this.gatePredicate = config.gatePredicate || null;
@@ -201,9 +212,10 @@ var Engine = (function() {
 
     if (this.starT > 0) this.starT -= dt;
     var cmax = this.starT > 0 ? this.MAXSPD*1.4 : this.MAXSPD;
-    var onRoad = nearestDist(tpts, this.px, this.pz) < 7.5;
-    var drag = onRoad ? this.DRAG_ROAD : this.DRAG_GRASS;
-    var spd = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
+    var distOff = nearestDist(tpts, this.px, this.pz);
+    var onRoad  = distOff < this.tw / 2;
+    var drag    = onRoad ? this.DRAG_ROAD : this.DRAG_GRASS;
+    var spd     = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
 
     if (this.spinT > 0) {
       this.spinT -= dt;
@@ -232,12 +244,34 @@ var Engine = (function() {
     this.px += this.vx*dt;
     this.pz += this.vz*dt;
 
+    // ---- トラック境界の強制（コース外に出たら押し戻す） ----
+    var distAfter = nearestDist(tpts, this.px, this.pz);
+    var wall = this.tw / 2 + 1;
+    if (distAfter > wall) {
+      var np = nearestPoint(tpts, this.px, this.pz);
+      var pushX = np.x - this.px, pushZ = np.z - this.pz;
+      var plen  = Math.sqrt(pushX*pushX + pushZ*pushZ);
+      if (plen > 0) {
+        var excess = distAfter - wall;
+        var force  = Math.min(excess * 14, 90);
+        this.vx += pushX/plen * force * dt;
+        this.vz += pushZ/plen * force * dt;
+        this.vx *= Math.exp(-5*dt);
+        this.vz *= Math.exp(-5*dt);
+        // 大きくはみ出た場合は位置も直接補正
+        if (distAfter > wall + 5) {
+          this.px += pushX/plen * (distAfter - wall - 5) * 0.35;
+          this.pz += pushZ/plen * (distAfter - wall - 5) * 0.35;
+        }
+      }
+    }
+
     return { spd:spd, lt:lt, rt:rt, up:up };
   };
 
   PlayerController.prototype.checkGate = function() {
     if (this.gatePredicate) return this.gatePredicate(this.px, this._prevX, this.pz);
-    return this._prevX < this.gateX && this.px >= this.gateX && Math.abs(this.pz) < 11;
+    return this._prevX < this.gateX && this.px >= this.gateX && Math.abs(this.pz) < this.tw/2 + 4;
   };
 
   PlayerController.prototype.hit = function() {
@@ -257,18 +291,19 @@ var Engine = (function() {
   }
 
   CpuController.prototype.update = function(dt) {
-    this.tgt += 0.003; if(this.tgt>1)this.tgt-=1;
+    // 先読みターゲット（lookahead）でスムーズに追従
+    this.tgt += 0.002; if(this.tgt>1)this.tgt-=1;
     var tgt=catmull(this.cps,this.tgt);
     var tdx=tgt[0]-this.px, tdz=tgt[1]-this.pz, td=Math.sqrt(tdx*tdx+tdz*tdz);
-    if(td<5)this.tgt+=0.007;
+    if(td<10)this.tgt+=0.006;
     var ta=Math.atan2(tdx,tdz), diff=ta-this.angle;
     while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
-    this.angle+=diff*Math.min(dt*3.5,1);
-    this.vx+=Math.sin(this.angle)*this.maxSpd*3*dt;
-    this.vz+=Math.cos(this.angle)*this.maxSpd*3*dt;
+    this.angle+=diff*Math.min(dt*3.0,1);
+    this.vx+=Math.sin(this.angle)*this.maxSpd*2.5*dt;
+    this.vz+=Math.cos(this.angle)*this.maxSpd*2.5*dt;
     var cv=Math.sqrt(this.vx*this.vx+this.vz*this.vz);
     if(cv>this.maxSpd){this.vx=this.vx/cv*this.maxSpd;this.vz=this.vz/cv*this.maxSpd;}
-    this.vx*=Math.exp(-1.5*dt); this.vz*=Math.exp(-1.5*dt);
+    this.vx*=Math.exp(-1.4*dt); this.vz*=Math.exp(-1.4*dt);
     this.px+=this.vx*dt; this.pz+=this.vz*dt;
   };
 
@@ -277,6 +312,7 @@ var Engine = (function() {
     catmull:       catmull,
     bakeTrack:     bakeTrack,
     nearestDist:   nearestDist,
+    nearestPoint:  nearestPoint,
     nearestT:      nearestT,
     buildRoad:     buildRoad,
     buildCurbs:    buildCurbs,
