@@ -293,22 +293,75 @@ var Engine = (function() {
     this.cps=cps;
   }
 
-  CpuController.prototype.update = function(dt) {
+  CpuController.prototype.update = function(dt, tpts, tw) {
     if (this.locked) return;
-    // 先読みターゲット（lookahead）でスムーズに追従
-    this.tgt += 0.002; if(this.tgt>1)this.tgt-=1;
-    var tgt=catmull(this.cps,this.tgt);
-    var tdx=tgt[0]-this.px, tdz=tgt[1]-this.pz, td=Math.sqrt(tdx*tdx+tdz*tdz);
-    if(td<10)this.tgt+=0.006;
-    var ta=Math.atan2(tdx,tdz), diff=ta-this.angle;
-    while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
-    this.angle+=diff*Math.min(dt*3.0,1);
-    this.vx+=Math.sin(this.angle)*this.maxSpd*4.0*dt;
-    this.vz+=Math.cos(this.angle)*this.maxSpd*4.0*dt;
-    var cv=Math.sqrt(this.vx*this.vx+this.vz*this.vz);
-    if(cv>this.maxSpd){this.vx=this.vx/cv*this.maxSpd;this.vz=this.vz/cv*this.maxSpd;}
-    this.vx*=Math.exp(-1.4*dt); this.vz*=Math.exp(-1.4*dt);
-    this.px+=this.vx*dt; this.pz+=this.vz*dt;
+
+    // 現在地から最も近いトラックT値を毎フレーム再計算して迷子を防ぐ
+    var closestT = 0, closestD = 999999;
+    var n = this.cps.length;
+    // 前回tgtの前後だけ探索（全探索は重いので±0.25の範囲）
+    var searchRange = 80;
+    var baseSeg = Math.floor(this.tgt * 200);
+    for (var si = -10; si <= searchRange; si++) {
+      var ti = ((baseSeg + si) % 200 + 200) % 200;
+      var r = catmull(this.cps, ti / 200);
+      var dx = this.px - r[0], dz = this.pz - r[1];
+      var d = dx*dx + dz*dz;
+      if (d < closestD) { closestD = d; closestT = ti / 200; }
+    }
+
+    // 先読み: 現在地から一定距離先のトラックポイントを目標にする
+    var lookahead = 0.025 + Math.min(Math.sqrt(this.vx*this.vx+this.vz*this.vz)/this.maxSpd, 1) * 0.02;
+    this.tgt = (closestT + lookahead) % 1;
+
+    var tgt = catmull(this.cps, this.tgt);
+    var tdx = tgt[0] - this.px, tdz = tgt[1] - this.pz;
+
+    // 向きをターゲット方向に合わせる（強めに）
+    var ta = Math.atan2(tdx, tdz);
+    var diff = ta - this.angle;
+    while (diff >  Math.PI) diff -= Math.PI*2;
+    while (diff < -Math.PI) diff += Math.PI*2;
+    this.angle += diff * Math.min(dt * 6.0, 1);
+
+    // 加速（常にフルスロットル）
+    var spd = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
+    if (spd < this.maxSpd) {
+      this.vx += Math.sin(this.angle) * this.maxSpd * 5.0 * dt;
+      this.vz += Math.cos(this.angle) * this.maxSpd * 5.0 * dt;
+    }
+    // 速度上限
+    var cv = Math.sqrt(this.vx*this.vx + this.vz*this.vz);
+    if (cv > this.maxSpd) { this.vx = this.vx/cv*this.maxSpd; this.vz = this.vz/cv*this.maxSpd; }
+
+    // 摩擦
+    this.vx *= Math.exp(-1.2*dt);
+    this.vz *= Math.exp(-1.2*dt);
+
+    this.px += this.vx*dt;
+    this.pz += this.vz*dt;
+
+    // コース境界の強制（プレイヤーと同じロジック）
+    if (tpts && tw) {
+      var distAfter = nearestDist(tpts, this.px, this.pz);
+      var wall = tw / 2 + 1;
+      if (distAfter > wall) {
+        var np = nearestPoint(tpts, this.px, this.pz);
+        var pushX = np.x - this.px, pushZ = np.z - this.pz;
+        var plen = Math.sqrt(pushX*pushX + pushZ*pushZ);
+        if (plen > 0) {
+          var excess = distAfter - wall;
+          this.vx += pushX/plen * Math.min(excess*16, 100) * dt;
+          this.vz += pushZ/plen * Math.min(excess*16, 100) * dt;
+          this.vx *= Math.exp(-5*dt);
+          this.vz *= Math.exp(-5*dt);
+          if (distAfter > wall + 4) {
+            this.px += pushX/plen * (distAfter - wall - 4) * 0.4;
+            this.pz += pushZ/plen * (distAfter - wall - 4) * 0.4;
+          }
+        }
+      }
+    }
   };
 
   // ---- Public API ----
