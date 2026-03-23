@@ -449,7 +449,7 @@ function startGame(C) {
       // CPU 更新
       cpuCtrl.forEach(function(c, i) {
         var prevCX = c.px;
-        c.update(dt);
+        c.update(dt, tpts, C.trackWidth || 28);
         if (cpuCheckGate(c, prevCX)) c.lap++;
         cpuKarts[i].position.set(c.px, 0, c.pz);
         var cv2 = Math.sqrt(c.vx*c.vx+c.vz*c.vz);
