@@ -6,306 +6,498 @@
 <title>Kart Blitz</title>
 <style>
 * { margin:0;padding:0;box-sizing:border-box; }
-html, body { width:100%;height:100%;overflow:hidden;background:#000;font-family:sans-serif; }
+html,body { width:100%;height:100%;overflow:hidden;background:#000;font-family:sans-serif; }
 #wrap { position:relative;width:100%;height:100%; }
 canvas#cv { display:block;width:100%;height:100%; }
-/* HUD */
+
 .hud-panel {
   position:absolute;background:rgba(0,0,0,0.62);border-radius:10px;
   color:#fff;border:1px solid rgba(255,204,68,0.35);
 }
-.hud-label { font-size:10px;color:#ffcc44;letter-spacing:2px;text-transform:uppercase; }
-.hud-val   { font-size:22px;font-weight:700;line-height:1.1; }
 #hud-left  { top:12px;left:12px;padding:8px 14px; }
 #hud-center{ top:12px;left:50%;transform:translateX(-50%);padding:8px 18px;text-align:center; }
 #hud-mm    { top:12px;right:12px;padding:6px; }
 #hud-hint  { bottom:10px;left:50%;transform:translateX(-50%);padding:4px 14px;
              font-size:11px;color:#ddd;border-radius:16px; }
+.hud-label { font-size:10px;color:#ffcc44;letter-spacing:2px; }
+.hud-val   { font-size:22px;font-weight:700;line-height:1.1; }
+
+/* ラップタイム表 */
+#hud-times {
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  margin-top:90px;background:rgba(0,0,0,0.55);border-radius:8px;
+  padding:4px 12px;font-size:12px;color:#aaa;text-align:center;
+  pointer-events:none;display:none;
+}
+
+/* カウントダウン / メッセージ */
 #msg {
   display:none;position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);
-  font-size:52px;font-weight:900;color:#fff;
-  text-shadow:3px 3px 0 #000, 0 0 20px #ffaa00;
-  text-align:center;line-height:1.3;pointer-events:none;
+  font-size:0px;font-weight:900;color:#fff;
+  text-shadow:4px 4px 0 #000, 0 0 30px #ffaa00;
+  text-align:center;line-height:1.2;pointer-events:none;
+  transition:font-size 0.08s;
 }
-#course-name {
-  position:absolute;top:12px;left:50%;transform:translateX(-50%);
-  font-size:13px;font-weight:600;color:#ffcc44;letter-spacing:1px;
-  pointer-events:none;margin-top:90px;
+
+/* スタートライト */
+#lights {
+  display:none;position:absolute;top:18%;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.7);border-radius:14px;padding:12px 20px;
+  border:2px solid rgba(255,255,255,0.15);
+  display:flex;gap:10px;align-items:center;
+}
+.light {
+  width:28px;height:28px;border-radius:50%;
+  background:#333;border:2px solid #555;
+  transition:background 0.1s,box-shadow 0.1s;
+}
+.light.red   { background:#cc0000;box-shadow:0 0 14px #ff0000; }
+.light.green { background:#00cc00;box-shadow:0 0 14px #00ff44; }
+
+/* 順位パネル（レース中） */
+#standings {
+  position:absolute;bottom:50px;right:12px;
+  background:rgba(0,0,0,0.62);border-radius:10px;
+  padding:8px 12px;color:#fff;font-size:12px;
+  border:1px solid rgba(255,204,68,0.25);
+  pointer-events:none;
+}
+#standings .row { display:flex;gap:8px;align-items:center;padding:2px 0; }
+#standings .pos { color:#ffcc44;font-weight:700;min-width:20px; }
+#standings .name { color:#ddd; }
+#standings .laps { color:#888;font-size:10px;margin-left:auto; }
+
+/* スピードメーター */
+#speedbar {
+  position:absolute;bottom:48px;left:12px;
+  background:rgba(0,0,0,0.55);border-radius:8px;padding:6px 12px;
+  color:#fff;font-size:11px;border:1px solid rgba(255,204,68,0.2);
+}
+#speedbar-fill {
+  height:4px;background:linear-gradient(90deg,#00ff88,#ffcc00,#ff4400);
+  border-radius:2px;margin-top:4px;transition:width 0.1s;
 }
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="cv"></canvas>
+
   <div id="hud-left" class="hud-panel">
     <div class="hud-label">LAP</div>
     <div id="lapd" class="hud-val">1 / 3</div>
     <div class="hud-label" style="margin-top:6px">POS</div>
     <div id="posd" class="hud-val" style="font-size:18px">1st</div>
   </div>
+
   <div id="hud-center" class="hud-panel">
     <div id="itemd" style="font-size:30px">--</div>
-    <div id="spdd" style="font-size:12px;color:#ffcc44;font-weight:600">0 km/h</div>
+    <div id="timd" style="font-size:11px;color:#ffcc44;font-weight:600;margin-top:2px">0:00.0</div>
   </div>
+
   <div id="hud-mm" class="hud-panel">
     <canvas id="mm" width="100" height="100"></canvas>
   </div>
+
   <div id="hud-hint" class="hud-panel">↑↓←→ / WASD: 操作 &nbsp;|&nbsp; Space: アイテム &nbsp;|&nbsp; <a href="index.html" style="color:#ffcc44">コース選択</a></div>
+
+  <div id="hud-times"></div>
+
+  <div id="speedbar">
+    <span id="spdd">0 km/h</span>
+    <div id="speedbar-fill" style="width:0%"></div>
+  </div>
+
+  <!-- スタートライト -->
+  <div id="lights">
+    <div class="light" id="l1"></div>
+    <div class="light" id="l2"></div>
+    <div class="light" id="l3"></div>
+    <div class="light" id="l4"></div>
+    <div class="light" id="l5"></div>
+  </div>
+
+  <!-- 順位表 -->
+  <div id="standings"></div>
+
   <div id="msg"></div>
-  <div id="course-name"></div>
 </div>
 
-<!-- Three.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- Engine modules -->
 <script src="js/textures.js"></script>
 <script src="js/kart.js"></script>
 <script src="js/engine.js"></script>
 
 <script>
-// Determine which course to load from URL param
 var params = new URLSearchParams(window.location.search);
 var courseId = params.get('course') || 'practice';
-
-// Dynamically load the course script, then start
 var s = document.createElement('script');
 s.src = 'courses/' + courseId + '.js';
 s.onload = function() { startGame(Course); };
-s.onerror = function() { document.body.innerHTML='<p style="color:#fff;padding:20px">コースが見つかりません: '+courseId+'</p>'; };
+s.onerror = function() { document.body.innerHTML='<p style="color:#fff;padding:20px">コースが見つかりません</p>'; };
 document.head.appendChild(s);
 
 function startGame(C) {
-  document.getElementById('course-name').textContent = C.name;
   document.title = C.name + ' — Kart Blitz';
 
   var wrap = document.getElementById('wrap');
   var W = wrap.clientWidth, H = wrap.clientHeight;
   var cv = document.getElementById('cv');
   cv.width = W; cv.height = H;
-  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  cv.style.width = W+'px'; cv.style.height = H+'px';
 
-  var renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true });
+  var renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true});
   renderer.setSize(W, H);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
   renderer.shadowMap.enabled = true;
 
   var scene = new THREE.Scene();
   scene.background = new THREE.Color(C.skyColor || 0x55aaee);
-  scene.fog = new THREE.Fog(C.fogColor || 0x88ccee, C.fogNear||100, C.fogFar||260);
+  scene.fog = new THREE.Fog(C.fogColor || 0x88ccee, C.fogNear||120, C.fogFar||320);
 
-  var camera = new THREE.PerspectiveCamera(60, W/H, 0.1, 400);
+  // 広角カメラ（スピード感アップ）
+  var camera = new THREE.PerspectiveCamera(75, W/H, 0.1, 500);
 
-  // Lights — nightMode uses dim ambient + no directional sun
   var isNight = C.nightMode || false;
   scene.add(new THREE.AmbientLight(isNight ? 0x3355aa : 0xffeedd, isNight ? 1.2 : 0.7));
   if (!isNight) {
     var sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
     sun.position.set(50,100,50); sun.castShadow=true;
-    sun.shadow.camera.left=-120; sun.shadow.camera.right=120;
-    sun.shadow.camera.top=120; sun.shadow.camera.bottom=-120;
-    sun.shadow.camera.far=350; sun.shadow.mapSize.set(1024,1024);
+    sun.shadow.camera.left=-150; sun.shadow.camera.right=150;
+    sun.shadow.camera.top=150; sun.shadow.camera.bottom=-150;
+    sun.shadow.camera.far=400; sun.shadow.mapSize.set(1024,1024);
     scene.add(sun);
     scene.add(new THREE.DirectionalLight(0x88bbff, 0.3));
   } else {
-    // 夜モード：コース全体を薄く照らす補助ライト
-    var nightFill = new THREE.DirectionalLight(0x4466cc, 0.6);
-    nightFill.position.set(0, 80, 0);
-    scene.add(nightFill);
-    var nightFill2 = new THREE.DirectionalLight(0x223355, 0.4);
-    nightFill2.position.set(100, 40, 80);
-    scene.add(nightFill2);
+    var nf1=new THREE.DirectionalLight(0x4466cc,0.6); nf1.position.set(0,80,0); scene.add(nf1);
+    var nf2=new THREE.DirectionalLight(0x223355,0.4); nf2.position.set(100,40,80); scene.add(nf2);
   }
 
-  // Bake track
   var tpts = Engine.bakeTrack(C.controlPoints, C.trackSegs);
 
-  // Ground — course can override with buildGround()
+  // 地面
   if (C.buildGround) {
     C.buildGround(scene);
   } else {
     var gTex = C.groundTex ? Textures[C.groundTex]() : Textures.grass();
-    var gnd = new THREE.Mesh(
-      new THREE.PlaneGeometry(500,500),
-      new THREE.MeshLambertMaterial({ map: gTex })
-    );
-    gnd.rotation.x=-Math.PI/2; gnd.position.set(25,-0.05,36);
-    gnd.receiveShadow=true; scene.add(gnd);
+    var gnd = new THREE.Mesh(new THREE.PlaneGeometry(800,700),new THREE.MeshLambertMaterial({map:gTex}));
+    gnd.rotation.x=-Math.PI/2; gnd.position.set(0,-0.05,0); gnd.receiveShadow=true; scene.add(gnd);
   }
 
-  // Road & curbs
   Engine.buildRoad(scene, tpts, C.trackWidth, Textures.asphalt());
   Engine.buildCurbs(scene, tpts, C.trackWidth, Textures.curb(C.trackSegs));
-
-  // Finish line
   if (C.buildFinish) C.buildFinish(scene);
-
-  // Item boxes
   var iboxes = Engine.buildItemBoxes(scene, C.controlPoints, C.itemBoxes);
-
-  // Scenery
   var extras = C.buildScenery ? C.buildScenery(scene) : {};
 
-  // Player kart
+  // ---- プレイヤーカート ----
   var pKart = KartBuilder.make(0xff1a1a, 0x1122bb, 0x222222);
   scene.add(pKart);
 
-  // Player controller
   var player = new Engine.PlayerController({
-    startX:     C.startX,
-    startZ:     C.startZ,
-    startAngle: C.startAngle,
-    laps:       C.laps || 3,
-    gateX:      C.gateX,
-    trackWidth: C.trackWidth || 28,
+    startX: C.startX, startZ: C.startZ, startAngle: C.startAngle,
+    laps: C.laps || 3, gateX: C.gateX, trackWidth: C.trackWidth || 28,
     gatePredicate: C.gatePredicate || null
   });
 
-  // CPU karts
+  // ---- CPUカート（スタートライン後ろに整列） ----
+  // スタート方向ベクトルを取得してオフセット
+  var startDir = Engine.catmull(C.controlPoints, 0.005);
+  var sd0 = Engine.catmull(C.controlPoints, 0);
+  var dirX = startDir[0]-sd0[0], dirZ = startDir[1]-sd0[1];
+  var dLen = Math.sqrt(dirX*dirX+dirZ*dirZ)||1;
+  dirX/=dLen; dirZ/=dLen;
+  // 横方向
+  var sideX = -dirZ, sideZ = dirX;
+
+  // 配置: プレイヤー前列、CPU後方に交互配置
+  var gridOffsets = [
+    // [後方距離, 横オフセット]
+    [-12,  8],  // CPU1: 後方1列目 右
+    [-12, -8],  // CPU2: 後方1列目 左
+    [-24,  0],  // CPU3: 後方2列目 中
+  ];
+
   var cpuKarts = [], cpuCtrl = [];
   (C.cpus || []).forEach(function(cpu, i) {
-    var colors = (C.cpuColors || [])[i] || [0xffcc00, 0x885500];
+    var off = gridOffsets[i] || [-12*(Math.floor(i/2)+1), (i%2===0?1:-1)*8];
+    var sx = C.startX - dirX*off[0] + sideX*off[1];
+    var sz = C.startZ - dirZ*off[0] + sideZ*off[1];
+
+    var colors = (C.cpuColors||[])[i] || [0xffcc00,0x885500];
     var k = KartBuilder.make(colors[0], colors[1], 0x222222);
     scene.add(k);
     cpuKarts.push(k);
-    var ctrl = new Engine.CpuController(C.controlPoints, cpu.startT, cpu.maxSpd);
-    k.position.set(ctrl.px, 0, ctrl.pz);
-    k.rotation.y = ctrl.angle;
+
+    // CPUはスタートT値をグリッド位置から計算
+    var startT = Engine.nearestT(C.controlPoints, C.trackSegs, sx, sz);
+    var ctrl = new Engine.CpuController(C.controlPoints, startT, cpu.maxSpd || 45);
+    ctrl.px = sx; ctrl.pz = sz;
+    ctrl.locked = true;
+    k.position.set(sx, 0, sz);
+    k.rotation.y = C.startAngle;
     cpuCtrl.push(ctrl);
   });
 
-  // Exhaust system
   var exhaust = new Engine.ExhaustSystem(scene);
-
-  // Placed items (from player)
   var placed = [];
 
-  // Input
   var keys = {};
   window.addEventListener('keydown', function(e) {
     keys[e.key]=true;
     if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.key)>=0) e.preventDefault();
   });
-  window.addEventListener('keyup', function(e) { keys[e.key]=false; });
+  window.addEventListener('keyup', function(e){keys[e.key]=false;});
 
-  // UI elements
   var lapD=document.getElementById('lapd'), posD=document.getElementById('posd');
   var itemD=document.getElementById('itemd'), spdD=document.getElementById('spdd');
+  var timD=document.getElementById('timd');
   var msgEl=document.getElementById('msg');
   var mmCv=document.getElementById('mm'), mmx=mmCv.getContext('2d');
-  var gstate='racing', frm=0;
+  var lightsEl=document.getElementById('lights');
+  var standingsEl=document.getElementById('standings');
+  var speedFill=document.getElementById('speedbar-fill');
 
-  function showMsg(t,d){msgEl.innerHTML=t;msgEl.style.display='block';if(d)setTimeout(function(){msgEl.style.display='none';},d);}
-  showMsg('GO! 🏁',1400);
+  // プレイヤーをスタート位置に
+  pKart.position.set(C.startX, 0, C.startZ);
+  pKart.rotation.y = C.startAngle;
 
-  function racePos() {
-    var all=[{lap:player.lap,t:Engine.nearestT(C.controlPoints,C.trackSegs,player.px,player.pz),pl:true}];
-    cpuCtrl.forEach(function(c){all.push({lap:c.lap,t:Engine.nearestT(C.controlPoints,C.trackSegs,c.px,c.pz),pl:false});});
-    all.sort(function(a,b){return b.lap!==a.lap?b.lap-a.lap:b.t-a.t;});
-    var idx=all.findIndex(function(a){return a.pl;});
-    return['1st','2nd','3rd','4th'][idx]||'4th';
+  // カメラ初期位置
+  camera.position.set(
+    C.startX - Math.sin(C.startAngle)*18,
+    9,
+    C.startZ - Math.cos(C.startAngle)*18
+  );
+  camera.lookAt(C.startX + Math.sin(C.startAngle)*10, 2, C.startZ + Math.cos(C.startAngle)*10);
+
+  // ---- ラップタイム管理 ----
+  var lapTimes = [];
+  var lapStart = 0;
+  var raceStart = 0;
+  var totalTime = 0;
+
+  function formatTime(sec) {
+    var m = Math.floor(sec/60), s = sec%60;
+    return m+':'+(s<10?'0':'')+s.toFixed(1);
   }
 
-  // Init camera
-  camera.position.set(
-    player.px - Math.sin(player.angle)*13,
-    7,
-    player.pz - Math.cos(player.angle)*13
-  );
-  camera.lookAt(player.px+Math.sin(player.angle)*8, 1.5, player.pz+Math.cos(player.angle)*8);
+  // ---- 順位計算 ----
+  var CPU_NAMES = ['CPU-A','CPU-B','CPU-C'];
+  function getRaceStandings() {
+    var all = [{
+      name:'YOU', lap:player.lap,
+      t: Engine.nearestT(C.controlPoints, C.trackSegs, player.px, player.pz),
+      pl:true
+    }];
+    cpuCtrl.forEach(function(c,i){
+      all.push({
+        name:CPU_NAMES[i], lap:c.lap,
+        t: Engine.nearestT(C.controlPoints, C.trackSegs, c.px, c.pz),
+        pl:false
+      });
+    });
+    all.sort(function(a,b){
+      if (b.lap !== a.lap) return b.lap - a.lap;
+      return b.t - a.t;
+    });
+    return all;
+  }
 
-  var lastT=0;
+  function racePos() {
+    var st = getRaceStandings();
+    var idx = st.findIndex(function(a){return a.pl;});
+    return ['1st','2nd','3rd','4th'][idx]||'4th';
+  }
+
+  function updateStandings() {
+    var st = getRaceStandings();
+    var html = '';
+    st.forEach(function(r, i) {
+      var color = r.pl ? '#ffcc44' : '#aaa';
+      html += '<div class="row"><span class="pos">'+(i+1)+'.</span>'
+            + '<span class="name" style="color:'+color+'">'+r.name+'</span>'
+            + '<span class="laps">LAP '+Math.min(r.lap, C.laps||3)+'</span></div>';
+    });
+    standingsEl.innerHTML = html;
+  }
+
+  // ---- カウントダウン ----
+  var gstate = 'countdown';
+  var frm = 0;
+  var countStep = 0;
+  lightsEl.style.display = 'flex';
+
+  function showMsg(t, d) {
+    msgEl.innerHTML = t;
+    msgEl.style.display='block';
+    msgEl.style.fontSize='72px';
+    if (d) setTimeout(function(){msgEl.style.display='none';},d);
+  }
+
+  var lightIds = ['l1','l2','l3','l4','l5'];
+  var lightTimers = [0, 0.8, 1.6, 2.4, 3.2]; // 各ライトが点灯する秒数
+  var lightsOn = [false,false,false,false,false];
+  var countdownDone = false;
+  var countdown_t = 0;
+  var GO_AT = 4.2; // 全ライト点灯後に消灯してGO
+
+  function doCountdown(dt) {
+    countdown_t += dt;
+
+    // ライトを順番に点灯
+    lightTimers.forEach(function(thr, i) {
+      if (!lightsOn[i] && countdown_t >= thr) {
+        lightsOn[i] = true;
+        document.getElementById(lightIds[i]).className = 'light red';
+      }
+    });
+
+    // GO！
+    if (!countdownDone && countdown_t >= GO_AT) {
+      countdownDone = true;
+      // 全ライト消灯 → 緑
+      lightIds.forEach(function(id){
+        document.getElementById(id).className = 'light green';
+      });
+      setTimeout(function(){
+        lightsEl.style.display = 'none';
+        gstate = 'racing';
+        player.locked = false;
+        cpuCtrl.forEach(function(c){ c.locked = false; });
+        raceStart = performance.now() / 1000;
+        lapStart  = raceStart;
+        showMsg('GO! 🏁', 900);
+      }, 400);
+    }
+  }
+
+  // ---- CPU ゲート判定（checkGateをCPUにも） ----
+  function cpuCheckGate(c, prevX) {
+    if (C.gatePredicate) return C.gatePredicate(c.px, prevX, c.pz);
+    return prevX < C.gateX && c.px >= C.gateX && Math.abs(c.pz) < (C.trackWidth||28)/2 + 4;
+  }
+
+  // ---- アニメーションループ ----
+  var lastT = 0;
   function animate(now) {
     requestAnimationFrame(animate);
-    var dt=Math.min((now-lastT)/1000,0.05); lastT=now; frm++;
+    var dt = Math.min((now - lastT)/1000, 0.05); lastT = now; frm++;
 
-    // Animate course scenery
     if (C.animateScenery) C.animateScenery(extras, frm);
 
-    if (gstate==='racing') {
-      // Player update
+    if (gstate === 'countdown') {
+      doCountdown(dt);
+      // カウントダウン中もカートを定位置に
+      pKart.position.set(player.px, 0, player.pz);
+    }
+
+    if (gstate === 'racing') {
+      totalTime = now/1000 - raceStart;
+
+      // プレイヤー更新
       var st = player.update(dt, keys, tpts);
 
-      // Item use
+      // アイテム使用
       if (keys[' '] && player.item) {
-        if (player.item==='star') {
-          player.starT=4; showMsg('⭐ スター！',1200);
+        if (player.item === 'star') {
+          player.starT = 5; showMsg('⭐ スター！',1200);
         } else {
-          var ic=Engine.ICOLORS[player.item]||0xffee00;
-          var im=new THREE.Mesh(new THREE.SphereGeometry(0.6,8,8),new THREE.MeshLambertMaterial({color:ic,emissive:ic,emissiveIntensity:0.4}));
-          im.position.set(player.px-Math.sin(player.angle)*2.4,0.6,player.pz-Math.cos(player.angle)*2.4);
-          scene.add(im); placed.push({mesh:im,type:player.item});
+          var ic = Engine.ICOLORS[player.item]||0xffee00;
+          var im = new THREE.Mesh(new THREE.SphereGeometry(0.8,8,8),
+            new THREE.MeshLambertMaterial({color:ic,emissive:ic,emissiveIntensity:0.4}));
+          im.position.set(player.px-Math.sin(player.angle)*3, 0.8, player.pz-Math.cos(player.angle)*3);
+          scene.add(im); placed.push({mesh:im, type:player.item});
         }
-        player.item=null; itemD.textContent='--';
+        player.item = null; itemD.textContent = '--';
       }
 
-      // Exhaust
-      if(frm%3===0&&st.spd>2) exhaust.spawn(player.px-Math.sin(player.angle)*2,player.pz-Math.cos(player.angle)*2,player.starT>0?0xff8800:0xaaaaaa);
+      // 排気
+      if (frm%2===0 && st.spd > 5)
+        exhaust.spawn(player.px-Math.sin(player.angle)*2.5, player.pz-Math.cos(player.angle)*2.5,
+          player.starT>0 ? 0xff8800 : 0xaaaaaa);
       exhaust.update(dt);
 
-      // Lap gate
+      // ラップゲート
       if (player.checkGate()) {
+        var lt2 = now/1000 - lapStart;
+        lapTimes.push(lt2);
+        lapStart = now/1000;
         player.lap++;
-        if(player.lap>player.TLAPS){
-          gstate='finish';
-          showMsg('🏁 FINISH!<br><span style="font-size:24px">'+racePos()+'</span>',0);
+        if (player.lap > player.TLAPS) {
+          gstate = 'finish';
+          var pos = racePos();
+          showMsg('🏁 FINISH!<br><span style="font-size:28px">'+pos+'</span>', 0);
         } else {
-          showMsg('LAP '+player.lap+'! 🎯',1500);
+          showMsg('LAP '+player.lap+'! &nbsp;<span style="font-size:28px">'+formatTime(lt2)+'</span>', 1800);
+          document.getElementById('hud-times').style.display = 'block';
+          document.getElementById('hud-times').textContent = 'BEST: '+formatTime(Math.min.apply(null,lapTimes));
         }
       }
 
-      // HUD
-      lapD.textContent=Math.min(player.lap,player.TLAPS)+' / '+player.TLAPS;
-      posD.textContent=racePos();
-      spdD.textContent=Math.round(st.spd/player.MAXSPD*120)+' km/h';
+      lapD.textContent = Math.min(player.lap,player.TLAPS)+' / '+player.TLAPS;
+      posD.textContent = racePos();
+      var kmh = Math.round(st.spd / 55 * 180);
+      spdD.textContent = kmh + ' km/h';
+      speedFill.style.width = Math.min(st.spd/55*100, 100)+'%';
+      timD.textContent = formatTime(totalTime);
 
-      // Kart mesh
-      pKart.position.set(player.px,0,player.pz);
-      if(st.spd>0.8) pKart.rotation.y=player.angle;
-      pKart.rotation.z=((st.rt?1:0)-(st.lt?1:0))*-0.07*Math.min(st.spd/player.MAXSPD,1);
+      // カートメッシュ
+      pKart.position.set(player.px, 0, player.pz);
+      if (st.spd > 1) pKart.rotation.y = player.angle;
+      pKart.rotation.z = ((st.rt?1:0)-(st.lt?1:0)) * -0.08 * Math.min(st.spd/55,1);
 
-      // CPU
-      cpuCtrl.forEach(function(c,i) {
-        var prevCX=c.px; c.update(dt);
-        if(player.checkGate && typeof c.px!=='undefined') {
-          if(prevCX<player.gateX&&c.px>=player.gateX&&Math.abs(c.pz)<11) c.lap++;
-        }
-        cpuKarts[i].position.set(c.px,0,c.pz);
-        if(Math.sqrt(c.vx*c.vx+c.vz*c.vz)>0.5) cpuKarts[i].rotation.y=c.angle;
+      // CPU 更新
+      cpuCtrl.forEach(function(c, i) {
+        var prevCX = c.px;
+        c.update(dt);
+        if (cpuCheckGate(c, prevCX)) c.lap++;
+        cpuKarts[i].position.set(c.px, 0, c.pz);
+        var cv2 = Math.sqrt(c.vx*c.vx+c.vz*c.vz);
+        if (cv2 > 1) cpuKarts[i].rotation.y = c.angle;
       });
 
-      // Item boxes
+      // アイテムボックス
       iboxes.forEach(function(ib) {
-        if(ib.col){ib.resp-=dt;if(ib.resp<=0){ib.col=false;ib.g.visible=true;ib.type=Engine.ITYPES[Math.floor(Math.random()*4)];} return;}
-        ib.g.rotation.y+=0.04; ib.wf.rotation.y-=0.06;
-        ib.g.position.y=1.0+Math.sin(frm*0.05)*0.2;
-        var ip=ib.g.position,dx=player.px-ip.x,dz2=player.pz-ip.z;
-        if(dx*dx+dz2*dz2<7){
+        if (ib.col){ib.resp-=dt;if(ib.resp<=0){ib.col=false;ib.g.visible=true;ib.type=Engine.ITYPES[Math.floor(Math.random()*4)];} return;}
+        ib.g.rotation.y += 0.04; ib.wf.rotation.y -= 0.06;
+        ib.g.position.y = 1.0+Math.sin(frm*0.06)*0.25;
+        var ip=ib.g.position, dx=player.px-ip.x, dz2=player.pz-ip.z;
+        if (dx*dx+dz2*dz2 < 9) {
           player.item=ib.type; itemD.textContent=Engine.IEMOJI[ib.type];
           ib.col=true; ib.resp=12; ib.g.visible=false;
-          showMsg(Engine.IEMOJI[ib.type]+' GET!',900);
+          showMsg(Engine.IEMOJI[ib.type]+' GET!', 900);
         }
       });
 
-      // Placed items collision
-      placed.forEach(function(pi) {
+      // 置いたアイテム
+      placed.forEach(function(pi){
         if(!pi.mesh||!pi.mesh.parent)return;
         pi.mesh.rotation.y+=0.1;
-        var dx=player.px-pi.mesh.position.x,dz2=player.pz-pi.mesh.position.z;
-        if(dx*dx+dz2*dz2<3&&player.starT<=0){
-          scene.remove(pi.mesh);pi.mesh=null;
+        var dx=player.px-pi.mesh.position.x, dz2=player.pz-pi.mesh.position.z;
+        if(dx*dx+dz2*dz2<4 && player.starT<=0){
+          scene.remove(pi.mesh); pi.mesh=null;
           player.hit(); showMsg('💥 HIT!',1100);
         }
       });
 
-      // Camera
-      var tx=player.px-Math.sin(player.angle)*13, tz=player.pz-Math.cos(player.angle)*13;
-      camera.position.x+=(tx-camera.position.x)*0.12;
-      camera.position.y+=(7-camera.position.y)*0.08;
-      camera.position.z+=(tz-camera.position.z)*0.12;
-      camera.lookAt(player.px+Math.sin(player.angle)*8,1.5,player.pz+Math.cos(player.angle)*8);
+      // 順位表更新（5フレームに1回）
+      if (frm%5===0) updateStandings();
+
+      // カメラ：スピードに応じて後ろに引く
+      var camDist = 14 + Math.min(st.spd/55, 1)*6;
+      var camH    = 7  + Math.min(st.spd/55, 1)*2;
+      var tx = player.px - Math.sin(player.angle)*camDist;
+      var tz = player.pz - Math.cos(player.angle)*camDist;
+      camera.position.x += (tx-camera.position.x)*0.12;
+      camera.position.y += (camH-camera.position.y)*0.08;
+      camera.position.z += (tz-camera.position.z)*0.12;
+      camera.lookAt(
+        player.px + Math.sin(player.angle)*10,
+        1.8,
+        player.pz + Math.cos(player.angle)*10
+      );
     }
 
-    // Minimap
     Engine.drawMinimap(mmx, C.controlPoints, C.trackSegs, player.px, player.pz, cpuCtrl);
     renderer.render(scene, camera);
   }
