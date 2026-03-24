@@ -22,29 +22,35 @@ var Course = {
   startAngle: Math.PI / 2,
   gateX:      3,
 
-  skyColor:  0x04070f,
-  fogColor:  0x080e1e,
-  fogNear:   80,
-  fogFar:    220,
+  skyColor:  0x0a1428,
+  fogColor:  0x0d1830,
+  fogNear:   60,
+  fogFar:    250,
 
   buildGround: function(scene) {
-    // 濡れた暗い路面
-    var c = document.createElement('canvas'); c.width=512; c.height=512;
+    var c = document.createElement('canvas'); c.width=256; c.height=256;
     var x = c.getContext('2d');
-    x.fillStyle='#0a0c14'; x.fillRect(0,0,512,512);
+    // 暗い濡れたアスファルト
+    x.fillStyle='#0a0c14'; x.fillRect(0,0,256,256);
+    // ノイズ
+    for (var i=0;i<1200;i++){
+      var v=12+Math.floor(Math.random()*14);
+      x.fillStyle='rgb('+v+','+v+','+(v+6)+')';
+      x.fillRect(Math.random()*256,Math.random()*256,2,2);
+    }
     // タイル目地
-    for (var tx=0;tx<512;tx+=32) { x.strokeStyle='rgba(255,255,255,0.04)'; x.lineWidth=1; x.beginPath(); x.moveTo(tx,0); x.lineTo(tx,512); x.stroke(); }
-    for (var tz=0;tz<512;tz+=32) { x.strokeStyle='rgba(255,255,255,0.04)'; x.lineWidth=1; x.beginPath(); x.moveTo(0,tz); x.lineTo(512,tz); x.stroke(); }
-    // ネオン反射（水たまり）
-    var cols=['#ff00aa','#00ffee','#aa00ff','#ff6600','#0066ff'];
-    for (var i=0;i<80;i++){
-      var px=Math.random()*512, py=Math.random()*512;
-      var col=cols[Math.floor(Math.random()*cols.length)];
-      var g=x.createRadialGradient(px,py,0,px,py,Math.random()*18+6);
-      g.addColorStop(0,col.replace('#','rgba(').replace(/([0-9a-f]{2})/gi,function(m,_,o){return o<5?parseInt(m,16)+',':''})+'0.18)');
-      g.addColorStop(0,col+'33');
-      g.addColorStop(1,'transparent');
-      x.fillStyle=g; x.fillRect(px-20,py-20,40,40);
+    x.strokeStyle='rgba(255,255,255,0.05)'; x.lineWidth=1;
+    for (var ti=0;ti<256;ti+=32){
+      x.beginPath();x.moveTo(ti,0);x.lineTo(ti,256);x.stroke();
+      x.beginPath();x.moveTo(0,ti);x.lineTo(256,ti);x.stroke();
+    }
+    // ネオン反射（シンプルな楕円）
+    var refCols=['rgba(255,0,170,0.12)','rgba(0,238,255,0.12)','rgba(170,0,255,0.10)','rgba(255,102,0,0.10)'];
+    for (var i=0;i<30;i++){
+      x.fillStyle=refCols[Math.floor(Math.random()*refCols.length)];
+      x.beginPath();
+      x.ellipse(Math.random()*256,Math.random()*256,Math.random()*18+4,Math.random()*6+2,Math.random()*Math.PI,0,Math.PI*2);
+      x.fill();
     }
     var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(30,30);
     var gnd=new THREE.Mesh(new THREE.PlaneGeometry(900,800),new THREE.MeshLambertMaterial({map:t}));
